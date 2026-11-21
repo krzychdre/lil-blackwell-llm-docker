@@ -11,6 +11,36 @@ Measurements are on 6x RTX PRO 6000 Blackwell Workstation (SM120, PCIe), driver 
 "Coherence" is `check-concurrency-coherence-53.py` (C1-C8, 30 replies); "prose bench" is
 `bench-prose-53.py` (29k-token prompt, 512 tokens, median of 3 runs).
 
+## krzych-20261121.3
+
+Image unchanged (`localhost/lil-krzych:krzych-20261121.2`); vLLM and FlashInfer unchanged.
+
+### Added
+
+- **Serving lanes** (blackwell-llm-docker, branch `feat/krzych-lanes`): `krzych/lanes/` with one
+  short script per model (`glm53-full.sh`, `glm53-flash.sh`, `glm53-flash-tp2.sh`,
+  `ds41-flash.sh`, `ds41-flash-abl.sh`), shared `lib.sh` and `stop.sh <name>`. Options are fixed
+  in each script; the only argument is the port (llama-swap `${PORT}`), the only overrides
+  `IMAGE` and `DRY_RUN=1`. `lib.sh` pins the release image, waits up to 90 s for the lane's GPUs,
+  runs in the foreground (the container stops with the process on SIGTERM) and logs to
+  `/home/krzych/glm-5.2/lane-logs/`. They replace the karmic_53_lil / karmic_ds41f /
+  karmic_ds41f_abliterated launchers (`run-*-kk.sh`, `serve-*.sh`), whose switches were not used.
+  The abliterated lane carries its 1017 prompt encoder and tokenizer in `krzych/lanes/ds41-abl/`
+  (sha256 13231c59…, ce3a05ce…, identical to the old lane's files).
+  Verified: with a stub `docker` recording the real `docker run` arguments, every new script
+  produces exactly the old launcher's options, environment and post-image arguments, except
+  `--rm` (the old scripts kept a stopped container for their stop scripts to remove) and, for the
+  abliterated lane, the four determinism switches set to 0 (the old lane ran on KK 20261011
+  without that code).
+
+### Verified
+
+- DeepSeek-V4.1-Flash-1017 abliterated (CSF) now runs on this image (it ran on LIL KK 20261011
+  before): KV pool 12,818,310 tokens, gate PASS, Polish arithmetic answer correct, tool call
+  parsed. First boot on the image took ~19 min (B12X tuning from scratch, once per image/model);
+  the 20261011-only csf-prefetch overlay is not applied.
+- `glm53-flash-tp2.sh`: coherence 30/30; `stop.sh` stops the container and frees the GPUs.
+
 ## krzych-20261121.2
 
 Image `localhost/lil-krzych:krzych-20261121.2`; vLLM `integration/krzych-kk-20261020` @ b48b578219
