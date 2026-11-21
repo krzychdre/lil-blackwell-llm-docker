@@ -3,7 +3,7 @@
 # (Engram tables in pinned host RAM) leave 10.75 GiB of KV cache, 525,573 tokens.
 # Usage: hy4-flash-tp2.sh [PORT]   (default 11112)
 # Image and constraints as in hy4-flash.sh (TP4 lane on GPUs 0-3; both can run together).
-: "${IMAGE:=localhost/lil-krzych:krzych-20261121.4}"
+: "${IMAGE:=localhost/lil-krzych:krzych-20261121.5}"
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 NAME=hy4-flash-tp2
@@ -17,6 +17,12 @@ ENV=(
   VLLM_CACHE_ROOT=/cache/vllm TRITON_CACHE_DIR=/cache/triton FLASHINFER_WORKSPACE_BASE=/cache
   VLLM_DETERMINISM_TOPK_SORT=0 VLLM_DETERMINISM_PADZERO=0
   VLLM_DETERMINISM_PAD_INPUT_IDS=0 B12X_DETERMINISM_ROUTE_PACK=0
+  HF_HOME=/root/.cache/huggingface XDG_CACHE_HOME=/cache/xdg
+  B12X_COMPILE_CACHE_DIR=/cache/b12x/compile
+  B12X_CUTE_COMPILE_CACHE_DIR=/cache/b12x/cute CUTE_DSL_CACHE_DIR=/cache/cute-dsl
+  # TP all-reduce of [tokens, 3072] bf16 through FlashInfer PCIe IPC (decode sizes); larger
+  # (prefill) reductions fall back to the default backend.
+  VLLM_ALLREDUCE_USE_FLASHINFER_PCIE_IPC=1
 )
 ARGS=(
   --served-model-name Hy4-flash-tp2
