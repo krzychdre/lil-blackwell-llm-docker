@@ -11,6 +11,43 @@ Measurements are on 6x RTX PRO 6000 Blackwell Workstation (SM120, PCIe), driver 
 "Coherence" is `check-concurrency-coherence-53.py` (C1-C8, 30 replies); "prose bench" is
 `bench-prose-53.py` (29k-token prompt, 512 tokens, median of 3 runs).
 
+## krzych-20261122
+
+Image `localhost/lil-krzych:krzych-20261122`; vLLM `integration/krzych-kk-20261020` @ 5a02be3ad8,
+FlashInfer `integration/krzych-kk-20261020` @ e1b86b7ba (unchanged). Only the Hy4 lanes use this image;
+the other lanes keep `krzych-20261121.2` (`lib.sh`).
+
+### Added
+
+- **DFly speculative decoding for Hy4 Flash** (vLLM, branch `feat/hy4-flash-dfly`), ported from
+  vllm-project/vllm#68296 onto this tree's speculator framework (upstream's speculator-config
+  framework is not imported). The checkpoint's 5 draft layers have no KV cache or indexer of their
+  own: each aliases the KV of target layer 25/29/33/37/41 and attends through that layer's top-k
+  plus the causal query block; one FULL CUDA graph runs the draft step. N is given explicitly (5),
+  since the checkpoint declares no `dfly_block_size`. Shared fixes: KV-sharing aliases now cover
+  MLA layers and are not duplicated in KV groups; HYV4 MLA sinks use FlashInfer SM120 sparse MLA on
+  SM12x instead of falling back to FlashMLA (which disabled the sink).
+- **Hy4 lanes run DFly** (blackwell-llm-docker, branch `feat/krzych-hy4-flash-dfly`):
+  `--speculative-config '{"method":"dfly","num_speculative_tokens":5}'` in both lanes.
+
+### Verified
+
+Context 262,144, N=5, FlashInfer PCIe IPC all-reduce; "mixed" = 16 prompts (code, JSON, SQL,
+translation, explanations) at temperature 0, single stream including prefill; "prose" = 600-token
+essays at temperature 0.7.
+
+| Lane | KV pool | Mixed | Prose, 1 stream | Prose, batch |
+|---|---|---|---|---|
+| `hy4-flash` (TP4), `krzych-20261121.5` | 2,688,315 | 63.7 | 64.2 | 338 (8) |
+| `hy4-flash` (TP4), DFly | 2,636,935 | 114.0 | 82.4 | 345 (8) |
+| `hy4-flash-tp2` (TP2), `krzych-20261121.5` | 657,340 | 55.1 | 56.1 | 170 (4) |
+| `hy4-flash-tp2` (TP2), DFly | 594,309 | 99.8 | 71.7 | 180 (4) |
+
+A 100-problem multi-step arithmetic set at temperature 0 is 100/100 on both lanes with and without
+DFly, at 3.2 tokens per target step. Greedy outputs are not token-identical with and without DFly
+(15 of 16 prompts diverge in the reasoning text); two boots of the same image without speculation
+also diverge on 8 of 16 prompts, at top-2 logprob gaps up to 0.64.
+
 ## krzych-20261121.5
 
 Image `localhost/lil-krzych:krzych-20261121.5`; vLLM `integration/krzych-kk-20261020` @ 97bca9f4d6,
