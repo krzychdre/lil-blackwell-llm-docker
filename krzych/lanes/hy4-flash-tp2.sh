@@ -22,7 +22,7 @@ ARGS=(
   --served-model-name Hy4-flash-tp2
   --tensor-parallel-size 2
   --kv-cache-dtype fp8_ds_mla
-  --max-model-len 65536
+  --max-model-len 262144
   --max-num-seqs 4
   --gpu-memory-utilization 0.97
   --reasoning-parser hy_v4
