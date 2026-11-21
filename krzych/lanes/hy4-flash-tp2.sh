@@ -3,7 +3,7 @@
 # (Engram tables in pinned host RAM) leave 10.75 GiB of KV cache, 525,573 tokens.
 # Usage: hy4-flash-tp2.sh [PORT]   (default 11112)
 # Image and constraints as in hy4-flash.sh (TP4 lane on GPUs 0-3; both can run together).
-: "${IMAGE:=localhost/lil-krzych:krzych-20261121.5}"
+: "${IMAGE:=localhost/lil-krzych:krzych-20261122}"
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 NAME=hy4-flash-tp2
@@ -31,6 +31,7 @@ ARGS=(
   --max-model-len 262144
   --max-num-seqs 4
   --gpu-memory-utilization 0.97
+  --speculative-config '{"method":"dfly","num_speculative_tokens":5}'
   --reasoning-parser hy_v4
   --tool-call-parser hy_v4 --enable-auto-tool-choice
   --host 0.0.0.0
