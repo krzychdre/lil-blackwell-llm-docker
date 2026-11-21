@@ -11,6 +11,44 @@ Measurements are on 6x RTX PRO 6000 Blackwell Workstation (SM120, PCIe), driver 
 "Coherence" is `check-concurrency-coherence-53.py` (C1-C8, 30 replies); "prose bench" is
 `bench-prose-53.py` (29k-token prompt, 512 tokens, median of 3 runs).
 
+## krzych-20261121.5
+
+Image `localhost/lil-krzych:krzych-20261121.5`; vLLM `integration/krzych-kk-20261020` @ 97bca9f4d6,
+FlashInfer `integration/krzych-kk-20261020` @ e1b86b7ba (unchanged). Only the Hy4 lanes use this image;
+the other lanes keep `krzych-20261121.2` (`lib.sh`).
+
+### Changed
+
+- **Hy4 Flash: one TP all-reduce per MoE layer** (vLLM, branch `feat/hy4-flash-speed`). The latent
+  experts' output projection is a bias-free BF16 linear, so it commutes with the tensor-parallel
+  sum; the MoE runner now applies it to the rank-local latent output and reduces routed and shared
+  outputs together once. TP all-reduces per decode step drop from 146 to 105, all
+  `[tokens, 3072]`. The embedding module gets its prefix, which B12X PCIe preparation needs.
+- **Hy4 lanes on FlashInfer PCIe IPC all-reduce** (blackwell-llm-docker, branch
+  `feat/krzych-hy4-flash-speed`): `VLLM_ALLREDUCE_USE_FLASHINFER_PCIE_IPC=1` in both lanes, which
+  replaces PyNCCL (TP4) and vLLM CUSTOM (TP2) for decode-size reductions. `HF_HOME` is pinned and
+  the b12x / CuTe compile caches sit in the lane volume.
+
+### Verified
+
+TP4 on GPUs 0-3, 600-token decode, two runs per arm (tok/s, single stream / 8 streams):
+
+| Arm | 1 stream | 8 streams |
+|---|---|---|
+| `krzych-20261121.4` (PyNCCL, two MoE reduces) | 59.2 | 305.7 |
+| one MoE reduce, PyNCCL | 61.3-61.5 | 298-302 |
+| one MoE reduce, B12X PCIe (`comm.pcie` preparation 6 s) | 63.8-64.0 | 317-320 |
+| one MoE reduce, FlashInfer PCIe IPC | 64.3-64.5 | 322-326 |
+| this release, lane as shipped | 64.2 | 338.3 |
+
+TP2 on GPUs 4,7 (single stream / 4 streams): `.4` 54.9 / 164, CUSTOM with one MoE reduce
+55.5 / 154-168, this release 56.1 / 169.9.
+
+A 20-problem arithmetic set at temperature 0 (final answer checked, max 3000 tokens) is 20/20 with
+every reply finished, on both lanes of this release and on `.4`; the 23k-token needle is retrieved.
+One reply in an intermediate TP2 CUSTOM arm came back with empty content; five later tries in that
+configuration, including as the first request after a fresh boot, answered correctly.
+
 ## krzych-20261121.4
 
 Image `localhost/lil-krzych:krzych-20261121.4`; vLLM `integration/krzych-kk-20261020` @ ce08fdbd56,
