@@ -11,6 +11,86 @@ Measurements are on 6x RTX PRO 6000 Blackwell Workstation (SM120, PCIe), driver 
 "Coherence" is `check-concurrency-coherence-53.py` (C1-C8, 30 replies); "prose bench" is
 `bench-prose-53.py` (29k-token prompt, 512 tokens, median of 3 runs).
 
+## krzych-20261121.4
+
+Image `localhost/lil-krzych:krzych-20261121.4`; vLLM `integration/krzych-kk-20261020` @ ce08fdbd56,
+FlashInfer `integration/krzych-kk-20261020` @ e1b86b7ba (unchanged). Only the Hy4 lanes use this image;
+the other lanes keep `krzych-20261121.2` (`lib.sh`) until they are verified on it.
+
+### Added
+
+- **Tencent Hy4 Flash** (vLLM, branch `feat/hy4-flash`): vllm-project/vllm#68296 (upstream
+  b067b6f6fa, "Add HY4 Flash and multimodal support") ported to `base/kk-20261020`, so
+  `tencent/Hy4-flash-FP8` (`HYV4FlashVLForConditionalGeneration`: text, image, video) serves on
+  SM120. Imported: the `hy_v4_flash` package (latent-expert MoE, sliding-window and IndexPool
+  sparse attention, Flash Engram), the HYV4 vision tower, processor, renderer, M-RoPE and the
+  `hy_v4` tool-parser update. Adapted to this tree:
+  - sparse and sliding-window MLA run on FlashInfer's SM120 sparse MLA kernel, with the per-head
+    learnable sink forwarded (`hy_v4_flash/nvidia/sm120.py`); requires `--kv-cache-dtype fp8_ds_mla`;
+  - the IndexPool pool and tail caches are expressed as KV specs this allocator accepts (pool
+    padded to the MLA page, tail as a circular buffer);
+  - IndexPool scoring uses the bundled DeepGEMM paged MQA logits, with a Triton fallback;
+  - Flash Engram uses this tree's DeepSeek V4.1 n-gram hashing; tables sit in pinned host RAM;
+  - Transformers 5.15 adds flat RoPE defaults next to Hy4's per-layer RoPE; they are dropped.
+
+  Not ported: DFly speculative decoding (Hy4 Flash rejects any speculative config), P/D M-RoPE
+  delta transfer, iHC sequence parallelism. TP6 is impossible (32 sparse-attention heads).
+- **Hy4 lanes** (blackwell-llm-docker, branch `feat/krzych-hy4-flash-lane`): `hy4-flash.sh`
+  (TP4, GPUs 0-3, context 262,144) and `hy4-flash-tp2.sh` (TP2, GPUs 4,7, context 65,536), both
+  with the hy_v4 reasoning and tool-call parsers and the determinism switches off. `lib.sh` gains
+  an optional `SERVE_CMD` (a command after the image, here `vllm serve MODEL`) because the image
+  launcher has no Hy4 profile; lanes without it produce the same `docker run` as before.
+
+### Changed
+
+- **Lanes in English** (blackwell-llm-docker, branch `docs/krzych-lanes-english`): comments,
+  messages and README of `krzych/lanes/`. Verified: `DRY_RUN=1` output of all five existing
+  lanes is byte-identical before and after.
+
+### Verified
+
+Both Hy4 lanes running together on this image (GPUs 0-3 and 4,7):
+
+| Lane | Weights/GPU | KV pool | 1 stream | Batch | Needle 23k | Tool call | Image |
+|---|---|---|---|---|---|---|---|
+| `hy4-flash` (TP4) | 40.5 GiB | 2,688,315 tok | 59.2 tok/s | 305.7 tok/s (8) | pass | pass | pass |
+| `hy4-flash-tp2` (TP2) | 77.65 GiB | 525,573 tok | 54.3 tok/s | 164.4 tok/s (4) | pass | pass | pass |
+
+Decode 600 tokens per request (`ignore_eos`); needle = a vault code at record 700 of 1,500
+(23,331 prompt tokens). First boot with both lanes reading the checkpoint at once took ~8.5 min
+(weights 5.3 min); with warm compile caches the engine starts in ~30 s after loading.
+Host shared memory (`free`) grows by ~128 GB per running Hy4 lane (pinned Engram tables).
+
+## krzych-20261121.3
+
+Image unchanged (`localhost/lil-krzych:krzych-20261121.2`); vLLM and FlashInfer unchanged.
+
+### Added
+
+- **Serving lanes** (blackwell-llm-docker, branch `feat/krzych-lanes`): `krzych/lanes/` with one
+  short script per model (`glm53-full.sh`, `glm53-flash.sh`, `glm53-flash-tp2.sh`,
+  `ds41-flash.sh`, `ds41-flash-abl.sh`), shared `lib.sh` and `stop.sh <name>`. Options are fixed
+  in each script; the only argument is the port (llama-swap `${PORT}`), the only overrides
+  `IMAGE` and `DRY_RUN=1`. `lib.sh` pins the release image, waits up to 90 s for the lane's GPUs,
+  runs in the foreground (the container stops with the process on SIGTERM) and logs to
+  `/home/krzych/glm-5.2/lane-logs/`. They replace the karmic_53_lil / karmic_ds41f /
+  karmic_ds41f_abliterated launchers (`run-*-kk.sh`, `serve-*.sh`), whose switches were not used.
+  The abliterated lane carries its 1017 prompt encoder and tokenizer in `krzych/lanes/ds41-abl/`
+  (sha256 13231c59…, ce3a05ce…, identical to the old lane's files).
+  Verified: with a stub `docker` recording the real `docker run` arguments, every new script
+  produces exactly the old launcher's options, environment and post-image arguments, except
+  `--rm` (the old scripts kept a stopped container for their stop scripts to remove) and, for the
+  abliterated lane, the four determinism switches set to 0 (the old lane ran on KK 20261011
+  without that code).
+
+### Verified
+
+- DeepSeek-V4.1-Flash-1017 abliterated (CSF) now runs on this image (it ran on LIL KK 20261011
+  before): KV pool 12,818,310 tokens, gate PASS, Polish arithmetic answer correct, tool call
+  parsed. First boot on the image took ~19 min (B12X tuning from scratch, once per image/model);
+  the 20261011-only csf-prefetch overlay is not applied.
+- `glm53-flash-tp2.sh`: coherence 30/30; `stop.sh` stops the container and frees the GPUs.
+
 ## krzych-20261121.2
 
 Image `localhost/lil-krzych:krzych-20261121.2`; vLLM `integration/krzych-kk-20261020` @ b48b578219
