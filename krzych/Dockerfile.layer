@@ -1,0 +1,7 @@
+# Context is assembled by build-layer-image.sh: files/ mirrors site-packages.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+COPY files/ /opt/venv/lib/python3.12/site-packages/
+RUN /opt/venv/bin/python -m compileall -q \
+      $(sed -n 's/^[AM] [0-9a-f]* \(.*\.py\)$/\/opt\/venv\/lib\/python3.12\/site-packages\/\1/p' \
+        /opt/venv/lib/python3.12/site-packages/LIL_KRZYCH_MANIFEST)
