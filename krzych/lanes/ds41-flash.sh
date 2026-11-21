@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# DeepSeek-V4.1-Flash-1017 (oryginalny checkpoint MXFP4), TP4, DSpark, Engram w RAM.
-# Użycie: ds41-flash.sh [PORT]   (domyślnie 11110)
+# DeepSeek-V4.1-Flash-1017 (original MXFP4 checkpoint), TP4, DSpark, Engram tables in host RAM.
+# Usage: ds41-flash.sh [PORT]   (default 11110)
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 NAME=ds41-flash
@@ -17,7 +17,7 @@ ENV=(
   ENGRAM_TABLE_MEMORY=ram
   TP=4 DCP=1
   CACHE_MODE=vram
-  VLLM_ENFORCE_STRICT_TOOL_CALLING=0   # xgrammar bez budowniczego V4.1: strict -> 400
+  VLLM_ENFORCE_STRICT_TOOL_CALLING=0   # xgrammar has no V4.1 builder: strict -> HTTP 400
   VLLM_ENABLE_STARTUP_PLAN=1
   INSTANTTENSOR_BACKEND=URING,AIO
   VLLM_DETERMINISM_TOPK_SORT=0 VLLM_DETERMINISM_PADZERO=0

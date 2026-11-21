@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# GLM-5.3 full (744B NVFP4-CSF), TP6/DCP3, MTP3, kontekst 262 144.
-# Uwaga BF16 (pusta quantization-config), szkic MTP z kwantowaną warstwą 78, KV 15 GiB
-# (pula 882 385). Determinizm wbudowany w obraz, planista zwykły.
-# Użycie: glm53-full.sh [PORT]   (domyślnie 10004)
+# GLM-5.3 full (744B NVFP4-CSF), TP6/DCP3, MTP3, context 262,144.
+# BF16 attention (empty quantization-config), MTP draft with a quantised layer 78, 15 GiB KV
+# (pool 882,385 tokens). Determinism built into the image (on), default scheduler.
+# Usage: glm53-full.sh [PORT]   (default 10004)
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 NAME=glm53-full

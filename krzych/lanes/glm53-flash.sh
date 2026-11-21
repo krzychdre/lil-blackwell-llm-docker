@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# GLM-5.3 Flash (checkpoint CSF-QAD qad2), TP4/DCP1, MTP3, kontekst 1 048 576.
-# Użycie: glm53-flash.sh [PORT]   (domyślnie 11110)
+# GLM-5.3 Flash (CSF-QAD qad2 checkpoint), TP4/DCP1, MTP3, context 1,048,576.
+# Usage: glm53-flash.sh [PORT]   (default 11110)
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 NAME=glm53-flash
@@ -15,10 +15,10 @@ ENV=(
   TP=4 DCP=1
   MAX_MODEL_LEN=1048576
   CACHE_MODE=vram
-  # qad2 trzyma lm_head w MXFP8: szkic dzieli głowicę zamiast budować własną NVFP4
+  # qad2 keeps lm_head in MXFP8: the draft shares that head instead of building its own NVFP4 one
   VLLM_GLM53_MTP_DRAFT_HEAD=bf16
   VLLM_GLM53_KDA_MXFP8_ACTIVATION_MODE=prefill
-  # determinizm z toru full wyłączony (Flash jechał bez niego)
+  # determinism patches (from the full lane) off: Flash has always run without them
   VLLM_DETERMINISM_TOPK_SORT=0 VLLM_DETERMINISM_PADZERO=0
   VLLM_DETERMINISM_PAD_INPUT_IDS=0 B12X_DETERMINISM_ROUTE_PACK=0
 )
