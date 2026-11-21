@@ -16,7 +16,7 @@ per start.
 | `ds41-flash.sh` | `DeepSeek-V4.1-Flash-1017` | 0-3 | 11110 | DeepSeek-V4.1-Flash-1017, original checkpoint, TP4 |
 | `ds41-flash-abl.sh` | `DeepSeek-V4.1-Flash-1017-abliterated` | 0-3 | 11110 | DeepSeek-V4.1-Flash-1017 abliterated (CSF), TP4, 1017 prompt encoder |
 | `hy4-flash.sh` | `Hy4-flash` | 0-3 | 11110 | Tencent Hy4 Flash FP8 (text, image, video), TP4, context 262,144 |
-| `hy4-flash-tp2.sh` | `Hy4-flash-tp2` | 4,7 | 11112 | Tencent Hy4 Flash FP8, TP2, context 65,536 |
+| `hy4-flash-tp2.sh` | `Hy4-flash-tp2` | 4,7 | 11112 | Tencent Hy4 Flash FP8, TP2, context 262,144 |
 
 Lanes that share GPUs cannot run together; `glm53-flash-tp2` and `hy4-flash-tp2` (GPUs 4,7) can
 run next to one of the GPU 0-3 lanes. The Hy4 lanes use their own image (`IMAGE` default in the
