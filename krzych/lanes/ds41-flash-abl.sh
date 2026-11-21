@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# DeepSeek-V4.1-Flash-1017 abliterated (jcartu, lossless CSF), TP4, DSpark, Engram w RAM.
-# Koder promptu i tokenizer z checkpointu 1017 (ds41-abl/): wersja z obrazu wycina
-# rozumowanie z tur z narzędziami. Oba pliki są takie same w bazie 20261011 i 20261020.
-# Użycie: ds41-flash-abl.sh [PORT]   (domyślnie 11110)
+# DeepSeek-V4.1-Flash-1017 abliterated (jcartu, lossless CSF), TP4, DSpark, Engram tables in host RAM.
+# Prompt encoder and tokenizer come from the 1017 checkpoint (ds41-abl/): the image's version strips
+# reasoning from tool-call turns. Both files are identical in the 20261011 and 20261020 bases.
+# Usage: ds41-flash-abl.sh [PORT]   (default 11110)
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HERE/lib.sh"
 

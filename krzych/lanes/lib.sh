@@ -1,15 +1,15 @@
-# Wspólna część torów: obraz, czekanie na karty, pierwszy plan pod llama-swap, log.
-# Skrypt toru ustawia NAME, GPUS, CACHE_VOL, ENV=(), ARGS=() (opcjonalnie DOCKER_OPTS=())
-# i woła lane_run PORT. Jedyne zmienne z zewnątrz:
-#   IMAGE=...   inny obraz (np. do porównania A/B)
-#   DRY_RUN=1   wypisz docker run i nic nie uruchamiaj
+# Shared part of the lanes: image, waiting for GPUs, foreground run for llama-swap, log.
+# A lane script sets NAME, GPUS, CACHE_VOL, ENV=(), ARGS=() (optionally DOCKER_OPTS=())
+# and calls lane_run PORT. The only variables taken from outside:
+#   IMAGE=...   a different image (e.g. for an A/B comparison)
+#   DRY_RUN=1   print the docker run command and start nothing
 set -euo pipefail
 
 IMAGE="${IMAGE:-localhost/lil-krzych:krzych-20261121.2}"
 HF_CACHE=/home/krzych/.cache/huggingface
 LOG_DIR=/home/krzych/glm-5.2/lane-logs
-GPU_WAIT=90        # s: tyle czekamy, aż poprzedni model zwolni karty (llama-swap)
-STOP_TIMEOUT=60    # s: łagodne zatrzymanie kontenera
+GPU_WAIT=90        # s: how long to wait for the previous model to free the GPUs (llama-swap)
+STOP_TIMEOUT=60    # s: graceful container stop
 DOCKER_OPTS=()
 
 _gpus_busy() {
@@ -38,22 +38,23 @@ lane_run() {
 
   local waited=0
   while _gpus_busy; do
-    (( waited >= GPU_WAIT )) && { echo "ERROR: karty $GPUS zajęte po ${GPU_WAIT}s" >&2; exit 2; }
-    (( waited == 0 )) && echo "karty $GPUS zajęte, czekam do ${GPU_WAIT}s..."
+    (( waited >= GPU_WAIT )) && { echo "ERROR: GPUs $GPUS still busy after ${GPU_WAIT}s" >&2; exit 2; }
+    (( waited == 0 )) && echo "GPUs $GPUS busy, waiting up to ${GPU_WAIT}s..."
     sleep 1; waited=$((waited + 1))
   done
   if ss -tln "( sport = :$port )" 2>/dev/null | grep -q LISTEN; then
-    echo "ERROR: port $port zajęty" >&2; exit 2
+    echo "ERROR: port $port already in use" >&2; exit 2
   fi
   docker image inspect "$IMAGE" >/dev/null
   docker rm -f "$NAME" >/dev/null 2>&1 || true
 
   mkdir -p "$LOG_DIR"
   local log="$LOG_DIR/$NAME-$(date +%Y%m%d-%H%M%S).log"
-  echo "start $NAME: obraz $IMAGE, karty $GPUS, port $port, log $log"
+  echo "start $NAME: image $IMAGE, GPUs $GPUS, port $port, log $log"
 
-  # Pierwszy plan: kontener musi umrzeć razem z procesem (llama-swap wysyła SIGTERM).
-  # Bash nie wykonuje pułapek, czekając na potok, więc potok idzie w tło + wait.
+  # Foreground: the container must die together with this process (llama-swap sends SIGTERM).
+  # Bash does not run traps while waiting on a foreground pipeline, so the pipeline goes to
+  # the background and we wait for it.
   trap 'docker stop -t "$STOP_TIMEOUT" "$NAME" >/dev/null 2>&1 || true' TERM INT HUP EXIT
   "${cmd[@]}" 2>&1 | tee "$log" &
   local pipeline=$! rc=0

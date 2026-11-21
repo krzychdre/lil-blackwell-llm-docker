@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# GLM-5.3 Flash (CSF-QAD qad2) na dwóch kartach 4 i 7: preset glm53-tp2, TP2/DCP2, MTP3.
-# Może chodzić równolegle z torem na kartach 0-3.
-# Użycie: glm53-flash-tp2.sh [PORT]   (domyślnie 11112)
+# GLM-5.3 Flash (CSF-QAD qad2) on two GPUs, 4 and 7: preset glm53-tp2, TP2/DCP2, MTP3.
+# Can run alongside a lane on GPUs 0-3.
+# Usage: glm53-flash-tp2.sh [PORT]   (default 11112)
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 NAME=glm53-flash-tp2
