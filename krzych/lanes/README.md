@@ -15,9 +15,13 @@ per start.
 | `glm53-flash-tp2.sh` | `GLM-5.3-Flash-NVFP4-tp2` | 4,7 | 11112 | GLM-5.3 Flash qad2, preset `glm53-tp2` (TP2/DCP2) |
 | `ds41-flash.sh` | `DeepSeek-V4.1-Flash-1017` | 0-3 | 11110 | DeepSeek-V4.1-Flash-1017, original checkpoint, TP4 |
 | `ds41-flash-abl.sh` | `DeepSeek-V4.1-Flash-1017-abliterated` | 0-3 | 11110 | DeepSeek-V4.1-Flash-1017 abliterated (CSF), TP4, 1017 prompt encoder |
+| `hy4-flash.sh` | `Hy4-flash` | 0-3 | 11110 | Tencent Hy4 Flash FP8 (text, image, video), TP4, context 262,144 |
+| `hy4-flash-tp2.sh` | `Hy4-flash-tp2` | 4,7 | 11112 | Tencent Hy4 Flash FP8, TP2, context 65,536 |
 
-Lanes that share GPUs cannot run together; `glm53-flash-tp2` (GPUs 4,7) can run next to one of the
-GPU 0-3 lanes. The checkpoint and its revision are `MODEL=` and `MODEL_REVISION=` in each script.
+Lanes that share GPUs cannot run together; `glm53-flash-tp2` and `hy4-flash-tp2` (GPUs 4,7) can
+run next to one of the GPU 0-3 lanes. The Hy4 lanes use their own image (`IMAGE` default in the
+script) and run `vllm serve` directly through `SERVE_CMD`, since the image launcher has no Hy4
+profile. The checkpoint and its revision are `MODEL=` and `MODEL_REVISION=` in each script.
 
 ## Quick start
 
@@ -58,9 +62,10 @@ Use a long `healthCheckTimeout` (e.g. 1500 s) for first boots.
 
 ## Notes
 
-- Determinism (the patches from the full lane) is on by default in the image; the Flash and DS4.1
-  lanes turn it off with the four switches in `ENV`. The isolated scheduler is not used (it is
-  `--scheduler-cls=vllm.v1.core.sched.lil_isolated_scheduler.IsolatedAsyncScheduler` in `ARGS`).
+- Determinism (the patches from the full lane) is on by default in the image; the Flash, DS4.1
+  and Hy4 lanes turn it off with the four switches in `ENV`. The isolated scheduler is not used
+  (it is `--scheduler-cls=vllm.v1.core.sched.lil_isolated_scheduler.IsolatedAsyncScheduler` in
+  `ARGS`).
 - Each lane mounts a Docker volume (`CACHE_VOL`) on `/cache`; it keeps compiled kernels and B12X
   tuning between runs. Docker creates it on first use.
 - `ds41-abl/` holds the 1017 prompt encoder and tokenizer that the abliterated lane mounts over the

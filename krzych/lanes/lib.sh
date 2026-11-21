@@ -30,7 +30,8 @@ lane_run() {
     -e HF_HUB_OFFLINE=1 -e PORT="$port")
   local kv
   for kv in "${ENV[@]}"; do cmd+=(-e "$kv"); done
-  cmd+=("$IMAGE" --enable-prompt-tokens-details "${ARGS[@]}")
+  # SERVE_CMD (optional, e.g. vllm serve MODEL) bypasses the image launcher's model profiles.
+  cmd+=("$IMAGE" ${SERVE_CMD[@]+"${SERVE_CMD[@]}"} --enable-prompt-tokens-details "${ARGS[@]}")
 
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
     printf '%q ' "${cmd[@]}"; echo; return 0
