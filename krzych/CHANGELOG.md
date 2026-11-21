@@ -36,7 +36,7 @@ the other lanes keep `krzych-20261121.2` (`lib.sh`) until they are verified on i
   Not ported: DFly speculative decoding (Hy4 Flash rejects any speculative config), P/D M-RoPE
   delta transfer, iHC sequence parallelism. TP6 is impossible (32 sparse-attention heads).
 - **Hy4 lanes** (blackwell-llm-docker, branch `feat/krzych-hy4-flash-lane`): `hy4-flash.sh`
-  (TP4, GPUs 0-3, context 262,144) and `hy4-flash-tp2.sh` (TP2, GPUs 4,7, context 65,536), both
+  (TP4, GPUs 0-3, context 262,144) and `hy4-flash-tp2.sh` (TP2, GPUs 4,7, context 262,144), both
   with the hy_v4 reasoning and tool-call parsers and the determinism switches off. `lib.sh` gains
   an optional `SERVE_CMD` (a command after the image, here `vllm serve MODEL`) because the image
   launcher has no Hy4 profile; lanes without it produce the same `docker run` as before.
@@ -54,11 +54,14 @@ Both Hy4 lanes running together on this image (GPUs 0-3 and 4,7):
 | Lane | Weights/GPU | KV pool | 1 stream | Batch | Needle 23k | Tool call | Image |
 |---|---|---|---|---|---|---|---|
 | `hy4-flash` (TP4) | 40.5 GiB | 2,688,315 tok | 59.2 tok/s | 305.7 tok/s (8) | pass | pass | pass |
-| `hy4-flash-tp2` (TP2) | 77.65 GiB | 525,573 tok | 54.3 tok/s | 164.4 tok/s (4) | pass | pass | pass |
+| `hy4-flash-tp2` (TP2) | 77.81 GiB | 657,340 tok | 54.9 tok/s | 164.4 tok/s (4) | pass | pass | pass |
 
 Decode 600 tokens per request (`ignore_eos`); needle = a vault code at record 700 of 1,500
-(23,331 prompt tokens). First boot with both lanes reading the checkpoint at once took ~8.5 min
-(weights 5.3 min); with warm compile caches the engine starts in ~30 s after loading.
+(23,331 prompt tokens). The TP2 row's weights, KV pool and 1-stream figures come from the lane at
+context 262,144 (run alone); its batch figure and checks from the same lane at context 65,536.
+At 262,144 the TP2 lane also retrieved a needle from a 153,015-token prompt (prefill 36 s).
+First boot with both lanes reading the checkpoint at once took ~8.5 min (weights 5.3 min); with
+warm compile caches the engine starts in ~30 s after loading.
 Host shared memory (`free`) grows by ~128 GB per running Hy4 lane (pinned Engram tables).
 
 ## krzych-20261121.3
