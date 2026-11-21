@@ -2,14 +2,15 @@
 # Tencent Hy4 Flash (tencent/Hy4-flash-FP8, blockwise FP8, text + image + video), TP4.
 # Usage: hy4-flash.sh [PORT]   (default 11110)
 #
-# Needs an image with the vLLM branch feat/hy4-flash (vllm-project/vllm#68296 ported to
-# base/kk-20261020 with SM12x attention), i.e. krzych-20261121.5 or later. The other lanes stay
-# on lib.sh's image. The image launcher has no Hy4 profile, so the lane runs `vllm serve`
-# directly (SERVE_CMD).
+# Needs an image with the vLLM branches feat/hy4-flash (vllm-project/vllm#68296 ported to
+# base/kk-20261020 with SM12x attention) and feat/hy4-flash-dfly (DFly speculative decoding),
+# i.e. krzych-20261122 or later. The other lanes stay on lib.sh's image. The image launcher
+# has no Hy4 profile, so the lane runs `vllm serve` directly (SERVE_CMD).
 # TP4 only among 4/6: 32 sparse-attention heads do not divide by 6.
 # Required: --kv-cache-dtype fp8_ds_mla (FlashInfer SM120 sparse MLA). Engram tables (~4 x 15 GB
-# FP8) live in pinned host RAM. No speculative decoding: the DFly drafter is not ported.
-: "${IMAGE:=localhost/lil-krzych:krzych-20261121.5}"
+# FP8) live in pinned host RAM. DFly drafts 5 tokens per step from the checkpoint's 5 draft
+# layers, which read and write the KV of target layers 25/29/33/37/41 (no KV of their own).
+: "${IMAGE:=localhost/lil-krzych:krzych-20261122}"
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 NAME=hy4-flash
@@ -37,6 +38,7 @@ ARGS=(
   --max-model-len 262144
   --max-num-seqs 8
   --gpu-memory-utilization 0.92
+  --speculative-config '{"method":"dfly","num_speculative_tokens":5}'
   --reasoning-parser hy_v4
   --tool-call-parser hy_v4 --enable-auto-tool-choice
   --host 0.0.0.0
